@@ -21,7 +21,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import tensorflow as tf
+#import tensorflow as tf
 
 
 # Initialise global variables
