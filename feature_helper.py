@@ -28,12 +28,7 @@ def remove_stopwords(l):
     return [w for w in l if w not in feature_extraction.text.ENGLISH_STOP_WORDS]
 
 
-def gen_or_load_feats(feat_fn, headlines, bodies, feature_file):
-#    if not os.path.isfile(feature_file):
-#        feats = feat_fn(headlines, bodies)
-#        np.save(feature_file, feats)
-#
-#    return np.load(feature_file)
+def gen_feats(feat_fn, headlines, bodies):
     return feat_fn(headlines, bodies)
 
 
@@ -205,7 +200,7 @@ def hand_features(headlines, bodies):
 
     X = []
     #for i, (headline, body) in tqdm(enumerate(zip(headlines, bodies))):
-    for i, (headline, body) in (enumerate(zip(headlines, bodies))):
+    for _, (headline, body) in (enumerate(zip(headlines, bodies))):
         X.append(binary_co_occurence(headline, body)
                  + binary_co_occurence_stops(headline, body)
                  + count_grams(headline, body))
