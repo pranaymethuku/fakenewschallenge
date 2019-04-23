@@ -1,11 +1,11 @@
 import numpy as np
-from util import *
+from util import FNCData, save_predictions
 import random
-#import tensorflow as tf
-#import tensorflow_hub as hub
+import tensorflow as tf
+import tensorflow_hub as hub
 import pandas as pd
 from feature_helper import word_overlap_features
-from feature_helper import refuting_features, polarity_features, hand_features, gen_or_load_feats
+from feature_helper import refuting_features, polarity_features, hand_features, gen_feats
 
 # Set file names
 file_train_instances = "train_stances.csv"
@@ -30,36 +30,63 @@ raw_train = FNCData(file_train_instances, file_train_bodies)
 raw_test = FNCData(file_test_instances, file_test_bodies)
 n_train = len(raw_train.instances)
 
-#elmo = hub.Module("https://tfhub.dev/google/elmo/2", trainable=True)
+elmo = hub.Module("https://tfhub.dev/google/elmo/2", trainable=True)
 
-inst = pd.DataFrame(raw_train.instances)
-unique_inst = inst.drop_duplicates(subset=['Body ID'])
+def get_train_dataset(train_df, raw_train):
+    # getting heads and bodies
+    train_heads = list(train_df.Headline.values)
+    train_bodies = [raw_train.bodies[i] for i in train_df['Body ID'].values]
+    train_stances = list(train_df.Stance.values)
 
-# getting heads and bodies
-heads = list(unique_inst.Headline.values)
-bodies = [raw_train.bodies[i] for i in unique_inst['Body ID'].values]
-stances = list(unique_inst.Stance.values)
+    ##these are derived from baseline
+    #These are 44 features
+    train_feat_overlap = gen_feats(word_overlap_features, train_heads, train_bodies)
+    train_feat_refuting = gen_feats(refuting_features, train_heads, train_bodies)
+    train_feat_polarity = gen_feats(polarity_features, train_heads, train_bodies)
+    train_feat_hand = gen_feats(hand_features, train_heads, train_bodies)
+    
+    # concatenate elmo of headline, body and and crafted features
+    X = np.c_[train_feat_hand, train_feat_polarity, train_feat_refuting, train_feat_overlap]
+    train_feat_tensor = tf.convert_to_tensor(X, dtype=tf.float32)
+    head_emb = elmo(train_heads, signature="default", as_dict=True)["default"]
+    body_emb = elmo(train_bodies, signature="default", as_dict=True)["default"]
+    train_set = tf.concat([train_feat_tensor, head_emb, body_emb], axis=1)
+    return train_set, train_stances
 
+def get_test_dataset(test_df, raw_test):
+    # getting heads and bodies
+    test_heads = list(test_df.Headline.values)
+    test_bodies = [raw_test.bodies[i] for i in test_df['Body ID'].values]
 
-##these are derived from baseline
-#These are 44 features
-X_overlap = gen_or_load_feats(word_overlap_features, heads, bodies, "features/overlap.training.npy")
-X_refuting = gen_or_load_feats(refuting_features, heads, bodies, "features/refuting.training.npy")
-X_polarity = gen_or_load_feats(polarity_features, heads, bodies, "features/polarity.training.npy")
-X_hand = gen_or_load_feats(hand_features, heads, bodies, "features/hand.training.npy")
-##TODO :: please fix this appropriately.
-'''
-concatenate elmo of headline, body and and crafted features
-'''
-X = np.c_[X_hand, X_polarity, X_refuting, X_overlap]  
-head_emb = elmo(heads, signature="default", as_dict=True)
-body_emb = elmo(bodies, signature="default", as_dict=True)
+    ##these are derived from baseline
+    #These are 44 features
+    test_feat_overlap = gen_feats(word_overlap_features, test_heads, test_bodies)
+    test_feat_refuting = gen_feats(refuting_features, test_heads, test_bodies)
+    test_feat_polarity = gen_feats(polarity_features, test_heads, test_bodies)
+    test_feat_hand = gen_feats(hand_features, test_heads, test_bodies)
+    
+    # concatenate elmo of headline, body and and crafted features
+    X = np.c_[test_feat_hand, test_feat_polarity, test_feat_refuting, test_feat_overlap]
+    test_feat_tensor = tf.convert_to_tensor(X, dtype=tf.float32)
+    head_emb = elmo(test_heads, signature="default", as_dict=True)["default"]
+    body_emb = elmo(test_bodies, signature="default", as_dict=True)["default"]
+    test_set = tf.concat([test_feat_tensor, head_emb, body_emb], axis=1)
+    return test_set
 
+# set up train dataset
+train_inst = pd.DataFrame(raw_train.instances)
+train_df = train_inst.drop_duplicates(subset=['Body ID'])
+train_set, train_stances = get_train_dataset(train_df, raw_train)
+feature_size = train_set.shape[0]
 
-# Define model - we are only giving the trianing option
+# set up test dataset
+test_inst = pd.DataFrame(raw_test.instances)
+test_df = test_inst.drop_duplicates(subset=['Body ID'])
+test_set = get_test_dataset(test_df, raw_test)
+
+# Define model - we are only giving the training option
 
 # Create placeholders
-##TODO :: set the feature_size appropriately
 features_pl = tf.placeholder(tf.float32, [None, feature_size], 'features')
 stances_pl = tf.placeholder(tf.int64, [None], 'stances')
 keep_prob_pl = tf.placeholder(tf.float32)
@@ -112,7 +139,6 @@ with tf.Session() as sess:
     # Predict
     test_feed_dict = {features_pl: test_set, keep_prob_pl: 1.0}
     test_pred = sess.run(predict, feed_dict=test_feed_dict)
-
 
 # Save predictions
 save_predictions(test_pred, file_predictions)
