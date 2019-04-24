@@ -31,9 +31,6 @@ def remove_stopwords(l):
 def gen_feats(feat_fn, headlines, bodies):
     return feat_fn(headlines, bodies)
 
-
-
-
 def word_overlap_features(headlines, bodies):
     X = []
     #for i, (headline, body) in tqdm(enumerate(zip(headlines, bodies))):

@@ -77,7 +77,7 @@ def get_test_dataset(test_df, raw_test):
 train_inst = pd.DataFrame(raw_train.instances)
 train_df = train_inst.drop_duplicates(subset=['Body ID'])
 train_set, train_stances = get_train_dataset(train_df, raw_train)
-feature_size = train_set.shape[0]
+feature_size = train_set.shape[1]
 
 # set up test dataset
 test_inst = pd.DataFrame(raw_test.instances)
@@ -117,7 +117,6 @@ grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tf_vars), clip_ratio)
 opt_op = opt_func.apply_gradients(zip(grads, tf_vars))
 
 # Perform training
-##TO DO :: Fix train/test pointers!
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
@@ -134,7 +133,6 @@ with tf.Session() as sess:
             batch_feed_dict = {features_pl: batch_features, stances_pl: batch_stances, keep_prob_pl: train_keep_prob}
             _, current_loss = sess.run([opt_op, loss], feed_dict=batch_feed_dict)
             total_loss += current_loss
-
 
     # Predict
     test_feed_dict = {features_pl: test_set, keep_prob_pl: 1.0}
