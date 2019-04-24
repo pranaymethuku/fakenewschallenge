@@ -78,11 +78,13 @@ train_inst = pd.DataFrame(raw_train.instances)
 train_df = train_inst.drop_duplicates(subset=['Body ID'])
 train_set, train_stances = get_train_dataset(train_df, raw_train)
 feature_size = train_set.shape[1]
+print("Loaded train set with all features, size: {}".format(train_set.shape[0]))
 
 # set up test dataset
 test_inst = pd.DataFrame(raw_test.instances)
 test_df = test_inst.drop_duplicates(subset=['Body ID'])
 test_set = get_test_dataset(test_df, raw_test)
+print("Loaded test set with all features, size: {}".format(test_set.shape[0]))
 
 # Define model - we are only giving the training option
 
@@ -133,6 +135,8 @@ with tf.Session() as sess:
             batch_feed_dict = {features_pl: batch_features, stances_pl: batch_stances, keep_prob_pl: train_keep_prob}
             _, current_loss = sess.run([opt_op, loss], feed_dict=batch_feed_dict)
             total_loss += current_loss
+        
+        print("Finished epoch {} of {}".format(epoch, epochs))
 
     # Predict
     test_feed_dict = {features_pl: test_set, keep_prob_pl: 1.0}
